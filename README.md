@@ -1,29 +1,122 @@
-# SVN Review
+﻿# SVN Review
 
-Local SVN review app packaged as a Codex plugin skill.
+SVN Review is a local, dependency-free web UI for reviewing SVN working-copy changes. It can run as a normal command-line tool or as a Codex plugin skill.
 
-## Use in Codex
+## Features
 
-Enable the personal `svn-review` plugin, open any local workspace thread, then ask Codex:
+- Opens a local folder in the browser and shows a fixed two-pane layout: file tree on the left, code view/editor on the right.
+- Supports lazy-loaded folders, so large working copies do not require a full recursive scan.
+- Shows SVN change badges beside files and folders.
+- Opens code files only; non-code files are rejected instead of being loaded into the browser.
+- Shows changed blocks, previous/next block navigation, previous/next changed file navigation, block revert, and full-file revert.
+- Watches the working copy with `fs.watch` and pushes live refresh events through SSE.
+- Works with a selected folder in the browser or a folder passed in the URL, for example `?path=D:\Project\Repo`.
+
+## Requirements
+
+- Windows, macOS, or Linux with Node.js available as `node`.
+- SVN command-line tools available as `svn`.
+- A local SVN working copy.
+- Codex is optional; it is only needed for plugin usage.
+
+No npm install is required.
+
+## Run As A Local App
+
+From this folder:
+
+```powershell
+node server.js
+```
+
+Then open:
+
+```text
+http://localhost:5173/
+```
+
+You can choose a local folder in the browser.
+
+To open a folder directly:
+
+```powershell
+node server.js "D:\Project\Repo"
+```
+
+Then open:
+
+```text
+http://localhost:5173/?path=D%3A%5CProject%5CRepo
+```
+
+On Windows you can also run:
+
+```powershell
+.\SVN Review.cmd
+```
+
+## Install As A Codex Plugin
+
+From this plugin folder:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\install.ps1
+```
+
+To reinstall after updating the files:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\install.ps1 -Reinstall
+```
+
+Then enable/use the `svn-review` plugin in Codex and ask:
 
 ```text
 Open SVN Review
 ```
 
-The skill starts or reuses `server.js` for that active workspace and opens the returned local URL in Codex's in-app Browser side panel. The returned URL includes `?path=<workspace>` when a workspace is known, so an externally running server can load the correct local directory directly. After Codex edits files in an SVN working copy, the skill should be used to open the current changes before the final response.
+The plugin starts or reuses the local server and opens a URL for the current workspace. If an SVN Review server is already running, the launcher reuses it and adds the workspace path to the URL.
 
-## Fallback
+## Publish From GitHub
 
-Run this from any SVN working copy:
+Put the plugin files at the repository root, including:
 
-```bash
-node C:\Users\DELL\plugins\svn-review\scripts\launch.js .
+```text
+.codex-plugin/
+skills/
+public/
+scripts/
+server.js
+install.ps1
+SVN Review.cmd
+README.md
+README.zh-CN.md
 ```
 
-Then open the printed `url`. If you already started SVN Review externally, the launcher reuses it and prints a URL with the workspace path parameter.
+Users can install from GitHub as a Codex marketplace:
 
-## Scope
+```powershell
+codex plugin marketplace add yourname/svn-review --ref main
+codex plugin add svn-review@svn-review
+```
 
-- Uses local `svn status`, `svn diff`, `svn cat`, `svn patch`, and `svn revert`.
-- No npm dependencies.
-- Starts a per-workspace local server on `127.0.0.1`, using port 5173 or the next free port.
+To refresh after you publish updates:
+
+```powershell
+codex plugin marketplace upgrade svn-review
+```
+
+If Codex keeps the old cache, reinstall the plugin:
+
+```powershell
+codex plugin remove svn-review@svn-review
+codex plugin add svn-review@svn-review
+```
+
+## Notes
+
+- The app binds to `127.0.0.1` and uses port `5173`, or the next free port up to `5199` when launched by `scripts/launch.js`.
+- Hidden directories whose names start with `.` are not shown in the file tree.
+- `.svn` folders and symlinks are skipped.
+- SVN has no native "revert one block" command. Block revert is implemented by applying the selected parsed diff hunk back to the working-copy file.
+- If a file changes on disk while it is open, saving from the browser may be rejected until the view refreshes.
