@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SVN Review</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <aside>
+      <header>
+        <strong>SVN Review</strong>
+        <div class="side-actions">
+          <button id="openFolder">Open Folder</button>
+          <button id="toggleSidebar" title="Collapse file tree">&lt;</button>
+        </div>
+      </header>
+      <div class="pathbar">
+        <input id="pathInput" placeholder="SVN working copy path" />
+        <button id="setRoot">Load</button>
+      </div>
+      <div id="root"></div>
+      <nav id="tree"></nav>
+    </aside>
+    <div id="sidebarResizer" role="separator" aria-label="Resize file tree"></div>
+    <main>
+      <header>
+        <div>
+          <strong id="fileName">Select a file</strong>
+          <span id="meta"></span>
+        </div>
+        <div class="actions">
+          <button id="saveFile" hidden>Save</button>
+          <button id="cancelEdit" hidden>Cancel</button>
+          <button id="revertFile">Revert file</button>
+        </div>
+      </header>
+      <section id="diff" aria-live="polite"></section>
+      <div id="changeBar" hidden>
+        <span id="hunkLabel"></span>
+        <button id="prevFile" title="Previous changed file">&lt; File</button>
+        <button id="prev" title="Previous change">Up</button>
+        <button id="next" title="Next change">Down</button>
+        <button id="nextFile" title="Next changed file">File &gt;</button>
+        <button id="revertHunk">Revert block</button>
+      </div>
+    </main>
+    <script src="app.js"></script>
+  </body>
+</html>

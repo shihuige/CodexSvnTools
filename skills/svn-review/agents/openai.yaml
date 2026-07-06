@@ -1,0 +1,7 @@
+interface:
+  display_name: SVN Review
+  short_description: Open current workspace SVN changes.
+  brand_color: "#0E639C"
+  default_prompt: Open SVN Review for this workspace.
+policy:
+  allow_implicit_invocation: true

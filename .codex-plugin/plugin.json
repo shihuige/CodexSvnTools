@@ -1,0 +1,21 @@
+{
+  "name": "svn-review",
+  "version": "0.1.0+codex.20260706051904",
+  "description": "Open a local SVN changes review panel for the current Codex workspace.",
+  "author": {
+    "name": "Local developer"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "SVN Review",
+    "shortDescription": "Open current workspace SVN changes.",
+    "longDescription": "SVN Review starts a local, dependency-free web UI and opens it in the Codex browser so you can inspect SVN status, diffs, and change blocks for the current workspace.",
+    "developerName": "Local developer",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Local"
+    ],
+    "defaultPrompt": "Open SVN Review for this workspace."
+  }
+}

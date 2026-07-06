@@ -1,0 +1,48 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+
+const app = fs.readFileSync(path.resolve(__dirname, '..', 'public', 'app.js'), 'utf8');
+const html = fs.readFileSync(path.resolve(__dirname, '..', 'public', 'index.html'), 'utf8');
+const css = fs.readFileSync(path.resolve(__dirname, '..', 'public', 'styles.css'), 'utf8');
+
+assert(app.includes('function canOpenFile'), 'front end should reject non-code files before fetching content');
+assert(app.includes('Cannot open this file type'), 'front end should show a clear unsupported-file message');
+assert(app.includes('async function revertHunk'), 'revert blocks should have a dedicated handler');
+assert(!/post\(.*\/api\/revert-hunk/.test(app), 'revert block must not use post(), because post() reloads the whole tree');
+assert(app.includes('positionChangeBar'), 'revert controls should float near the current change block');
+assert(app.includes('async function refreshLoadedFolders'), 'revert should refresh loaded tree statuses without resetting the tree');
+assert(app.includes('/api/list-loaded'), 'loaded folder status refresh should be batched');
+assert(app.includes('async function refreshSelectedFile'), 'selected file should auto-refresh after external edits');
+assert(app.includes('new EventSource("/api/events")'), 'external edits should be pushed by SSE');
+assert(!app.includes('setInterval(refreshSelectedFile'), 'selected file refresh should not poll');
+assert(!app.includes('async function post'), 'revert file should not reload and collapse the whole tree');
+assert(/id=.changeBar./.test(html), 'revert controls should live in a floating change bar');
+assert(/id=.prevFile.[\s\S]*id=.prev.[\s\S]*id=.next.[\s\S]*id=.nextFile.[\s\S]*id=.revertHunk./.test(html), 'floating controls should include changed-file navigation around block navigation');
+assert(/id=.hunkLabel./.test(html), 'floating bar should show which block will be reverted');
+assert(css.includes('#changeBar'), 'floating change bar CSS should be present');
+assert(html.includes('id="sidebarResizer"'), 'sidebar should have a drag resizer');
+assert(html.includes('id="toggleSidebar"'), 'sidebar should have a collapse toggle');
+assert(app.includes('function setSidebarWidth'), 'sidebar width should be adjustable');
+assert(app.includes('function setSidebarCollapsed'), 'sidebar should be collapsible');
+assert(app.includes('class="node-name"'), 'tree nodes should use aligned name cells');
+assert(/class="node-name"[\s\S]*badge\(status\)/.test(app), 'status badge should render after the file or folder name');
+assert(css.includes('grid-template-columns: var(--sidebar-width) 6px'), 'layout should be fixed left/right with a resizer column');
+assert(css.includes('body.sidebar-collapsed'), 'collapsed sidebar CSS should be present');
+assert(!html.includes('id="refresh"'), 'manual refresh button should be removed because SSE keeps the view current');
+assert(!app.includes('#refresh'), 'manual refresh handler should be removed');
+assert(app.includes('/api/changed-files'), 'frontend should load all changed files for cross-file navigation');
+assert(app.includes('function goChange'), 'prev/next change should stay inside the current file');
+assert(app.includes('openAdjacentChangedFile'), 'dedicated file buttons should open adjacent changed files');
+assert(app.includes('#prevFile') && app.includes('#nextFile'), 'changed-file navigation buttons should be wired');
+assert(css.includes('body.sidebar-collapsed { grid-template-columns: 42px minmax(0, 1fr); }'), 'collapsed sidebar should leave main content visible');
+assert(html.includes('id="saveFile"'), 'top bar should include a save button');
+assert(html.includes('id="cancelEdit"'), 'top bar should include a cancel edit button');
+assert(app.includes('function updateDirty'), 'frontend should track unsaved editor content');
+assert(app.includes('async function saveFile'), 'frontend should save edited content');
+assert(app.includes('function cancelEdit'), 'frontend should cancel current edits');
+assert(app.includes('event.key.toLowerCase() === "s"'), 'Ctrl+S should be wired to save');
+assert(app.includes('state.dirty || !file'), 'external refresh should not overwrite unsaved edits');
+assert(css.includes('#editor'), 'editable code textarea CSS should be present');
+
+console.log('ok - floating revert controls are wired correctly');
