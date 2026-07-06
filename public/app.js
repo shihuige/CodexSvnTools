@@ -33,12 +33,11 @@ function fileStamp(file) {
   return file ? JSON.stringify([file.content, file.markers, file.hunks]) : "";
 }
 function updateEditControls() {
-  const dirty = Boolean(state.selected && state.file && state.dirty);
-  saveFileEl.hidden = !dirty;
-  cancelEditEl.hidden = !dirty;
+  saveFileEl.hidden = true;
+  cancelEditEl.hidden = true;
 }
 function confirmDiscard() {
-  return !state.dirty || confirm("Discard unsaved changes?");
+  return true;
 }
 function setEditContent(content) {
   state.savedContent = content;
@@ -143,15 +142,39 @@ function lineHtml(n, text, kind, hunk) {
   const attr = hunk == null ? "" : ` data-hunk="${hunk}"`;
   return `<div class="code-line ${kind}${current}"${attr}><span class="ln">${n || ""}</span><span class="src">${highlightText(text || " ")}</span></div>`;
 }
+function renderDiff() {
+  const lines = (state.file?.content || "").split(/\r?\n/);
+  const byLine = state.file?.markers?.byLine || {};
+  const deleted = groupDeleted(state.file?.markers?.deleted || []);
+  let html = "";
+  for (let index = 0; index < lines.length; index++) {
+    const lineNo = index + 1;
+    for (const item of deleted.get(lineNo - 1) || []) html += lineHtml("-", item.text, "del", item.hunk);
+    const marker = byLine[lineNo];
+    html += lineHtml(lineNo, lines[index], marker?.kind || "ctx", marker?.hunk);
+  }
+  for (const item of deleted.get(lines.length) || []) html += lineHtml("-", item.text, "del", item.hunk);
+  return html || '<div class="empty">No local changes in this file.</div>';
+}
+function setFileNavDisabled(prevDisabled, nextDisabled) {
+  for (const id of ["#prevFile", "#prevFileTop"]) {
+    const el = document.querySelector(id);
+    if (el) el.disabled = prevDisabled;
+  }
+  for (const id of ["#nextFile", "#nextFileTop"]) {
+    const el = document.querySelector(id);
+    if (el) el.disabled = nextDisabled;
+  }
+}
 function updateChangeControls() {
   const total = state.file?.hunks.length || 0;
-  const fileIndex = changedFileIndex();
+  const files = changedPaths();
+  const fileIndex = files.indexOf(state.selected);
   hunkLabelEl.textContent = total ? 'Block ' + (state.hunk + 1) + '/' + total : '';
   changeBarEl.hidden = total === 0 || !state.selected;
   document.querySelector('#prev').disabled = state.hunk <= 0;
   document.querySelector('#next').disabled = state.hunk >= total - 1;
-  document.querySelector('#prevFile').disabled = fileIndex <= 0;
-  document.querySelector('#nextFile').disabled = fileIndex < 0 || fileIndex >= changedPaths().length - 1;
+  setFileNavDisabled(!files.length || fileIndex === 0, !files.length || fileIndex === files.length - 1);
   document.querySelector('#revertHunk').disabled = !state.selected || total === 0;
 }
 function positionChangeBar() {
@@ -173,16 +196,7 @@ function renderFile() {
   updateEditControls();
   if (!state.selected) { diffEl.innerHTML = '<div class="empty">Select a local folder, then select a file.</div>'; return; }
   if (!state.file) { diffEl.innerHTML = '<div class="empty">Loading...</div>'; return; }
-  diffEl.innerHTML = '<textarea id="editor" spellcheck="false"></textarea>';
-  const editor = diffEl.querySelector('#editor');
-  editor.value = state.editContent;
-  editor.addEventListener('input', () => updateDirty(editor.value));
-  editor.addEventListener('keydown', (event) => {
-    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
-      event.preventDefault();
-      saveFile();
-    }
-  });
+  diffEl.innerHTML = renderDiff();
   positionChangeBar();
 }
 function renderUnsupportedFile(path) {
@@ -196,7 +210,9 @@ function renderUnsupportedFile(path) {
   updateChangeControls();
 }
 function scrollHunk() {
-  document.querySelector(`.code-line[data-hunk="${state.hunk}"]`)?.scrollIntoView({ block: "center" });
+  const line = diffEl.querySelector(`.code-line[data-hunk="${state.hunk}"]`);
+  if (!line) return;
+  diffEl.scrollTop = Math.max(0, line.offsetTop - Math.floor(diffEl.clientHeight * 0.35));
 }
 async function loadFolder(path) {
   const res = await fetch(`/api/list?path=${encodeURIComponent(path)}`);
@@ -307,10 +323,10 @@ async function openAdjacentChangedFile(delta) {
   const next = files[nextIndex];
   if (!next) return;
   await loadFile(next);
-  if (delta < 0 && state.file?.hunks.length) {
-    state.hunk = state.file.hunks.length - 1;
-    renderFile();
-  }
+  if (!state.file?.hunks.length) return;
+  if (delta < 0) state.hunk = state.file.hunks.length - 1;
+  renderFile();
+  requestAnimationFrame(() => { scrollHunk(); positionChangeBar(); });
 }
 function goChange(delta) {
   const total = state.file?.hunks.length || 0;
@@ -318,6 +334,7 @@ function goChange(delta) {
   if (delta < 0) state.hunk = Math.max(0, state.hunk - 1);
   else state.hunk = Math.min(total - 1, state.hunk + 1);
   renderFile();
+  requestAnimationFrame(() => { scrollHunk(); positionChangeBar(); });
 }
 function startSidebarResize(event) {
   if (document.body.classList.contains("sidebar-collapsed")) return;
@@ -334,6 +351,13 @@ function stopSidebarResize() {
   resizingSidebar = false;
   document.body.classList.remove("resizing-sidebar");
 }
+function initFileNav() {
+  const target = document.querySelector("main header .actions") || document.querySelector("main header") || document.querySelector("main");
+  if (!target || document.querySelector("#prevFileTop")) return;
+  target.insertAdjacentHTML("afterbegin", '<button id="prevFileTop" title="Previous changed file">Prev file</button><button id="nextFileTop" title="Next changed file">Next file</button>');
+  document.querySelector("#prevFileTop").addEventListener("click", () => openAdjacentChangedFile(-1));
+  document.querySelector("#nextFileTop").addEventListener("click", () => openAdjacentChangedFile(1));
+}
 function connectEvents() {
   if (eventsStarted || !window.EventSource) return;
   eventsStarted = true;
@@ -343,6 +367,15 @@ function connectEvents() {
     refreshLoadedFolders();
     refreshSelectedFile();
   });
+}
+async function postJson(url, body) {
+  const res = await fetch(url, requestOptions(body));
+  const data = await res.json();
+  if (!res.ok) {
+    alert(data.error || "Operation failed");
+    return null;
+  }
+  return data;
 }
 async function sendPost(url, body) {
   const res = await fetch(url, requestOptions(body));
@@ -368,13 +401,17 @@ function cancelEdit() {
   renderFile();
 }async function revertHunk(hunk) {
   const file = state.selected;
-  if (!file) return;
-  state.hunk = hunk;
+  const index = Number(hunk);
+  if (!file || !Number.isInteger(index)) return;
+  const data = await postJson("/api/revert-hunk", { path: file, hunk: index });
+  if (!data) return;
+  state.file = data;
+  state.fileStamp = fileStamp(data);
+  setEditContent(data.content || "");
+  state.hunk = Math.min(index, Math.max(0, data.hunks.length - 1));
+  await refreshLoadedFolders();
   renderFile();
-  if (await sendPost("/api/revert-hunk", { path: file, hunk })) {
-    await refreshLoadedFolders();
-    await loadFile(file);
-  }
+  requestAnimationFrame(() => { scrollHunk(); positionChangeBar(); });
 }
 
 treeEl.addEventListener("click", (event) => {
@@ -395,6 +432,7 @@ sidebarResizerEl.addEventListener("pointerdown", startSidebarResize);
 window.addEventListener("pointermove", resizeSidebar);
 window.addEventListener("pointerup", stopSidebarResize);
 initSidebarLayout();
+initFileNav();
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) { refreshChangedFiles(); refreshLoadedFolders(); refreshSelectedFile(); }
 });
@@ -409,7 +447,10 @@ document.addEventListener("keydown", (event) => {
     saveFile();
   }
 });
-document.querySelector("#revertHunk").addEventListener("click", () => revertHunk(state.hunk));
+document.querySelector("#revertHunk").addEventListener("click", () => {
+  const current = diffEl.querySelector(".code-line.current-change[data-hunk]");
+  revertHunk(current ? current.dataset.hunk : state.hunk);
+});
 document.querySelector("#revertFile").addEventListener("click", async () => {
   const file = state.selected;
   if (!file) return;
