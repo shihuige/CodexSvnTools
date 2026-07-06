@@ -77,41 +77,6 @@ Open SVN Review
 
 插件会启动或复用本地服务，并为当前工作区打开对应 URL。如果外部已经运行了 SVN Review，启动器会复用现有服务，并把当前工作区路径带到 URL 里。
 
-## 通过 GitHub 发布
-
-把插件文件放在仓库根目录，至少包含：
-
-```text
-.codex-plugin/
-skills/
-public/
-scripts/
-server.js
-install.ps1
-SVN Review.cmd
-README.md
-README.zh-CN.md
-```
-
-别人可以把 GitHub 仓库添加为 Codex marketplace：
-
-```powershell
-codex plugin marketplace add yourname/svn-review --ref main
-codex plugin add svn-review@svn-review
-```
-
-你发布更新后，用户刷新 marketplace：
-
-```powershell
-codex plugin marketplace upgrade svn-review
-```
-
-如果 Codex 仍然使用旧缓存，可以重装插件：
-
-```powershell
-codex plugin remove svn-review@svn-review
-codex plugin add svn-review@svn-review
-```
 
 ## 说明
 

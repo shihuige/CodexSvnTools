@@ -77,42 +77,6 @@ Open SVN Review
 
 The plugin starts or reuses the local server and opens a URL for the current workspace. If an SVN Review server is already running, the launcher reuses it and adds the workspace path to the URL.
 
-## Publish From GitHub
-
-Put the plugin files at the repository root, including:
-
-```text
-.codex-plugin/
-skills/
-public/
-scripts/
-server.js
-install.ps1
-SVN Review.cmd
-README.md
-README.zh-CN.md
-```
-
-Users can install from GitHub as a Codex marketplace:
-
-```powershell
-codex plugin marketplace add yourname/svn-review --ref main
-codex plugin add svn-review@svn-review
-```
-
-To refresh after you publish updates:
-
-```powershell
-codex plugin marketplace upgrade svn-review
-```
-
-If Codex keeps the old cache, reinstall the plugin:
-
-```powershell
-codex plugin remove svn-review@svn-review
-codex plugin add svn-review@svn-review
-```
-
 ## Notes
 
 - The app binds to `127.0.0.1` and uses port `5173`, or the next free port up to `5199` when launched by `scripts/launch.js`.
